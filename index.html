@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <title>💖</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: "Microsoft YaHei", sans-serif;
+            transition: background 1s;
+            background: radial-gradient(circle at 50% 45%, #fef6f9 0%, #cbeeff 100%);
+        }
+        body.dark {
+            background: radial-gradient(circle at 50% 45%, #121212 0%, #000000 100%);
+            color: #eee;
+        }
+        .stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .msg {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            padding: 1em 1.6em;
+            border-radius: 18px;
+            color: #fff;
+            font-weight: 700;
+            font-size: clamp(16px, 3.5vmin, 28px);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.7) rotate(var(--rot));
+            animation: fly var(--dur) cubic-bezier(0.25, 0.7, 0.3, 1) both;
+            box-shadow: 0 8px 26px rgba(0,0,0,0.25);
+            text-align: center;
+            pointer-events: none;
+            transition: filter 0.5s;
+        }
+        body.dark .msg {
+            filter: none !important;
+        }
+        @keyframes fly {
+            0% { opacity: 0; transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.7) rotate(var(--rot)); }
+            15% { opacity: 1; }
+            55% { opacity: 1; transform: translate(-50%, -50%) translate(calc(var(--dx)*0.1), calc(var(--dy)*0.1)) scale(1.02); }
+            90% { opacity: 1; transform: translate(-50%, -50%) translate(0, 0) scale(1) rotate(0deg); }
+            100% { opacity: 0; transform: translate(-50%, -50%) translate(0, 0) scale(1.03); }
+        }
+        .controls {
+            position: absolute;
+            right: 18px;
+            bottom: 18px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .btn {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            color: #222;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+            font-size: clamp(14px, 2.5vmin, 18px);
+            transition: all 0.3s;
+        }
+        body.dark .btn {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+        .snow {
+            position: fixed;
+            top: -10px;
+            color: white;
+            user-select: none;
+            pointer-events: none;
+            animation: snowfall linear forwards;
+            z-index: 99;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        @keyframes snowfall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stage" id="stage-main"></div>
+    <div class="controls" id="controls-main">
+        <button class="btn" id="themeBtn">切换主题</button>
+        <button class="btn" id="replay-main">重播 / 切换背景</button>
+    </div>
+
+    <audio id="bgMusic" preload="auto">
+    <source src="https://lf9-music-east.douyinstatic.com/obj/ies-music-hj/7495920705440140091.mp3" type="audio/mpeg">
+  </audio>
+
+    <script>
+        const tipsMain = [
+            "今天开心点", "我好想你", "要好好照顾自己", "你是最棒的", "记得多喝热水", "早点休息", "笑一个吧",
+            "生活要有小惊喜", "我会一直在", "不要害怕", "记得吃早餐", "今天也要元气满满", "出门注意安全",
+            "保持微笑", "你值得被爱", "希望你一切顺利", "天气转凉记得添衣", "心情要好好的", "一切都会变好的"
+        ];
+        const stageMain = document.getElementById('stage-main');
+        const replayMain = document.getElementById('replay-main');
+        const themeBtn = document.getElementById('themeBtn');
+        let darkMain = false;
+        let snowRunningMain = false;
+        let msgFrameMain, lastMsgTimeMain = 0;
+        let snowFrameMain, lastSnowTimeMain = 0;
+        const directionsMain = [
+            {dx:'0vw', dy:'-80vh'}, {dx:'0vw', dy:'80vh'},
+            {dx:'-80vw', dy:'0vh'}, {dx:'80vw', dy:'0vh'},
+            {dx:'-70vw', dy:'-70vh'}, {dx:'70vw', dy:'-70vh'},
+            {dx:'-70vw', dy:'70vh'}, {dx:'70vw', dy:'70vh'}
+        ];
+
+        function rand(min, max){ return Math.random() * (max - min) + min; }
+        function hexToRgba(hex, alpha = 1) {
+            const h = hex.replace('#', '');
+            const r = parseInt(h.length === 3 ? h[0]+h[0] : h.slice(0,2), 16);
+            const g = parseInt(h.length === 3 ? h[1]+h[1] : h.slice(2,4), 16);
+            const b = parseInt(h.length === 3 ? h[2]+h[2] : h.slice(4,6), 16);
+            return `rgba(${r},${g},${b},${alpha})`;
+        }
+        function randomStyleMain() {
+            const palettes = [
+                ['#ff758c','#ff7eb3'], ['#a18cd1','#fbc2eb'],
+                ['#f6d365','#fda085'], ['#84fab0','#8fd3f4'],
+                ['#f093fb','#f5576c'], ['#4facfe','#00f2fe']
+            ];
+            const c = palettes[Math.floor(Math.random() * palettes.length)];
+            return {
+                bg: `linear-gradient(135deg, ${c[0]}, ${c[1]})`,
+                glow1: hexToRgba(c[0], 0.45),
+                glow2: hexToRgba(c[1], 0.25)
+            };
+        }
+        function createMsgMain() {
+            const el = document.createElement('div');
+            el.className = 'msg';
+            const d = directionsMain[Math.floor(Math.random() * directionsMain.length)];
+            el.style.setProperty('--dx', d.dx);
+            el.style.setProperty('--dy', d.dy);
+            el.style.setProperty('--rot', rand(-60, 60) + 'deg');
+            el.style.setProperty('--dur', (rand(6, 8)) + 's');
+            const sty = randomStyleMain();
+            el.style.background = sty.bg;
+            el.textContent = tipsMain[Math.floor(Math.random() * tipsMain.length)];
+            el.addEventListener('animationend', () => el.remove());
+            stageMain.appendChild(el);
+        }
+        function loopMessagesMain(timestamp) {
+            if (!lastMsgTimeMain) lastMsgTimeMain = timestamp;
+            const delta = timestamp - lastMsgTimeMain;
+            if (delta > 600) {
+                for (let i = 0; i < 3; i++) createMsgMain();
+                lastMsgTimeMain = timestamp;
+            }
+            msgFrameMain = requestAnimationFrame(loopMessagesMain);
+        }
+        function stopMessagesMain() {
+            cancelAnimationFrame(msgFrameMain);
+            stageMain.querySelectorAll('.msg').forEach(m => m.remove());
+        }
+        function createSnowMain() {
+            const snow = document.createElement('div');
+            snow.className = 'snow';
+            snow.textContent = '❄';
+            snow.style.left = Math.random() * 100 + 'vw';
+            snow.style.fontSize = Math.random() * 12 + 8 + 'px';
+            snow.style.opacity = Math.random() * 0.8 + 0.2;
+            const duration = Math.random() * 5 + 6;
+            snow.style.animationDuration = duration + 's';
+            document.body.appendChild(snow);
+            setTimeout(() => snow.remove(), duration * 1000);
+        }
+        function loopSnowMain(timestamp) {
+            if (!lastSnowTimeMain) lastSnowTimeMain = timestamp;
+            const delta = timestamp - lastSnowTimeMain;
+            if (delta > 400) {
+                if (snowRunningMain) {
+                    for (let i = 0; i < (darkMain ? 2 : 1); i++) createSnowMain();
+                }
+                lastSnowTimeMain = timestamp;
+            }
+            snowFrameMain = requestAnimationFrame(loopSnowMain);
+        }
+        function startSnowMain() {
+            snowRunningMain = true;
+            lastSnowTimeMain = 0;
+            loopSnowMain();
+        }
+        function stopSnowMain() {
+            snowRunningMain = false;
+            cancelAnimationFrame(snowFrameMain);
+            document.querySelectorAll('.snow').forEach(s => s.remove());
+        }
+
+        const bgMusic = document.getElementById('bgMusic');
+        function preloadAudio() {
+            if (bgMusic.readyState < 2) bgMusic.load();
+        }
+        function playMusicOnce() {
+            bgMusic.currentTime = 0;
+            bgMusic.play().catch(() => {
+                const triggerPlay = () => {
+                    bgMusic.play();
+                    document.body.removeEventListener('click', triggerPlay);
+                };
+                document.body.addEventListener('click', triggerPlay);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            preloadAudio();
+            setTimeout(playMusicOnce, 300);
+            
+            loopMessagesMain(performance.now());
+            
+            replayMain.onclick = () => {
+                darkMain = !darkMain;
+                document.body.classList.toggle('dark', darkMain);
+                stopMessagesMain();
+                cancelAnimationFrame(msgFrameMain);
+                lastMsgTimeMain = 0;
+                loopMessagesMain(performance.now());
+                if (darkMain) startSnowMain(); else stopSnowMain();
+                playMusicOnce();
+            };
+            
+            themeBtn.onclick = () => {
+                window.location.href = 'love.html';
+            };
+        });
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                stopMessagesMain();
+                lastMsgTimeMain = 0;
+                loopMessagesMain(performance.now());
+            }, 150);
+        });
+    </script>
+</body>
+</html>
