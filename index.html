@@ -55,7 +55,7 @@
             position: absolute;
             right: 18px;
             bottom: 18px;
-            display: flex;
+            display: none; /* 默认隐藏右下角按钮 */
             gap: 12px;
             align-items: center;
         }
@@ -90,19 +90,112 @@
             0% { transform: translateY(0) rotate(0deg); opacity: 1; }
             100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
         }
+        /* 新增弹窗相关CSS */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal {
+            background-color: #ffffff;
+            padding: 0 0 20px;
+            border-radius: 12px;
+            text-align: center;
+            width: 90%;
+            max-width: 450px;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        body.dark .modal {
+            background-color: #2a2a2a;
+        }
+        body.dark .title {
+            color: #f0f0f0;
+        }
+        body.dark .content {
+            color: #ccc;
+        }
+        .modal-backdrop.active .modal {
+            transform: scale(1);
+        }
+        .titlebar {
+            width: 100%;
+            margin: 0 0 15px;
+            padding: 10px 0;
+            background-color: #fff0f0;
+            border-radius: 12px 12px 0 0;
+            text-align: center;
+        }
+        .icon {
+            font-size: 30px;
+            display: inline-block;
+            margin-bottom: 8px;
+            animation: bounce 1.5s infinite;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #333;
+        }
+        .content {
+            font-size: 16px;
+            color: #666;
+            margin: 0 40px 25px;
+            line-height: 1.6;
+        }
+        .actions {
+            display: flex;
+            justify-content: center;
+            margin: 0 40px 5px;
+        }
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
     </style>
 </head>
 <body>
     <div class="stage" id="stage-main"></div>
+    <!-- 新增弹窗HTML结构 -->
+    <div class="modal-backdrop" id="start-backdrop">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="titlebar">
+                <span class="icon">❤️</span>
+                <span class="title" id="modal-title">礼物</span>
+            </div>
+            <div class="content">您有一份礼物，确定要打开吗？</div>
+            <div class="actions">
+                <button class="btn primary" id="confirm-btn" autofocus>确定</button>
+            </div>
+        </div>
+    </div>
     <div class="controls" id="controls-main">
         <button class="btn" id="themeBtn">切换主题</button>
         <button class="btn" id="replay-main">重播 / 切换背景</button>
     </div>
-
     <audio id="bgMusic" preload="auto">
     <source src="https://lf9-music-east.douyinstatic.com/obj/ies-music-hj/7495920705440140091.mp3" type="audio/mpeg">
-  </audio>
-
+    </audio>
     <script>
         const tipsMain = [
             "今天开心点", "我好想你", "要好好照顾自己", "你是最棒的", "记得多喝热水", "早点休息", "笑一个吧",
@@ -112,6 +205,7 @@
         const stageMain = document.getElementById('stage-main');
         const replayMain = document.getElementById('replay-main');
         const themeBtn = document.getElementById('themeBtn');
+        const controlsMain = document.getElementById('controls-main');
         let darkMain = false;
         let snowRunningMain = false;
         let msgFrameMain, lastMsgTimeMain = 0;
@@ -122,7 +216,6 @@
             {dx:'-70vw', dy:'-70vh'}, {dx:'70vw', dy:'-70vh'},
             {dx:'-70vw', dy:'70vh'}, {dx:'70vw', dy:'70vh'}
         ];
-
         function rand(min, max){ return Math.random() * (max - min) + min; }
         function hexToRgba(hex, alpha = 1) {
             const h = hex.replace('#', '');
@@ -204,7 +297,6 @@
             cancelAnimationFrame(snowFrameMain);
             document.querySelectorAll('.snow').forEach(s => s.remove());
         }
-
         const bgMusic = document.getElementById('bgMusic');
         function preloadAudio() {
             if (bgMusic.readyState < 2) bgMusic.load();
@@ -219,12 +311,20 @@
                 document.body.addEventListener('click', triggerPlay);
             });
         }
-
         document.addEventListener('DOMContentLoaded', () => {
             preloadAudio();
-            setTimeout(playMusicOnce, 300);
             
-            loopMessagesMain(performance.now());
+            // 显示弹窗（覆盖整个页面，阻止背景交互）
+            const startBackdrop = document.getElementById('start-backdrop');
+            startBackdrop.classList.add('active');
+            
+            // 确认按钮点击后才初始化所有功能
+            document.getElementById('confirm-btn').addEventListener('click', () => {
+                startBackdrop.classList.remove('active'); // 隐藏弹窗
+                controlsMain.style.display = 'flex'; // 显示控制按钮
+                setTimeout(playMusicOnce, 300); // 播放背景音乐
+                loopMessagesMain(performance.now()); // 开始生成标签
+            });
             
             replayMain.onclick = () => {
                 darkMain = !darkMain;
@@ -238,18 +338,21 @@
             };
             
             themeBtn.onclick = () => {
-                window.location.href = 'love.html';
+                window.location.href = 'https://sctre.github.io/third/';
             };
         });
-
+        // 禁止窗口 resize 时提前生成标签
         let resizeTimer;
         window.addEventListener('resize', () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                stopMessagesMain();
-                lastMsgTimeMain = 0;
-                loopMessagesMain(performance.now());
-            }, 150);
+            // 仅在确认按钮点击后（控制按钮显示时）才处理 resize
+            if (controlsMain.style.display === 'flex') {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    stopMessagesMain();
+                    lastMsgTimeMain = 0;
+                    loopMessagesMain(performance.now());
+                }, 150);
+            }
         });
     </script>
 </body>
