@@ -463,19 +463,7 @@
                 window.location.href = 'https://sctre.github.io/third/';
             };
         });
-        // 禁止窗口 resize 时提前生成标签
-        let resizeTimer;
-        window.addEventListener('resize', () => {
-            // 仅在确认按钮点击后（控制按钮显示时）才处理 resize
-            if (controlsMain.style.display === 'flex') {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(() => {
-                    stopMessagesMain();
-                    lastMsgTimeMain = 0;
-                    loopMessagesMain(performance.now());
-                }, 150);
-            }
-        });
+        // 移除窗口resize事件监听，防止全屏切换时动画重播
     </script>
 </body>
 </html>
